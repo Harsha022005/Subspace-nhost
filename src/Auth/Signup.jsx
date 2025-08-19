@@ -1,38 +1,68 @@
 import { nhost } from "../nhost";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, gql } from "@apollo/client";
 
-function Signup() {
+// GraphQL mutation to insert user profile
+const INSERT_USER_PROFILE = gql`
+  mutation InsertUserProfile($auth_id: uuid!, $user_name: String!, $user_email: String!) {
+    insert_users_app_one(object: { auth_id: $auth_id, user_name: $user_name, user_email: $user_email }) {
+      user_id
+      user_name
+      user_email
+    }
+  }
+`;
+
+function Signup({ client }) {
+  const [userName, setUserName] = useState(''); 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  const [insertUserProfile] = useMutation(INSERT_USER_PROFILE);
+
   const handleSignup = async () => {
-    // Reset error state
     setError('');
 
-    // Check if passwords match
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    try {
-      const { session, error } = await nhost.auth.signUp({ email, password });
+    if (!userName.trim()) {
+      setError('Please enter your name');
+      return;
+    }
 
-      if (error) {
-        // Handle specific "user already exists" error
-        if (error.message.toLowerCase().includes('already exists')) {
+    try {
+      //  Signup with Nhost Auth
+      const { session, error: authError } = await nhost.auth.signUp({ email, password });
+
+      if (authError) {
+        if (authError.message.toLowerCase().includes('already exists')) {
           setError('An account with this email already exists. Try signing in instead.');
         } else {
-          setError(error.message || 'An error occurred during signup.');
+          setError(authError.message || 'An error occurred during signup.');
         }
-      } else {
-        console.log('User signed up successfully', session);
-        navigate('/chatinbox');
+        return;
       }
+
+      //  Insert into users_app table
+      const authUser = nhost.auth.getUser();
+      await insertUserProfile({
+        variables: {
+          auth_id: authUser.id,
+          user_name: userName,
+          user_email: authUser.email
+        }
+      });
+
+      console.log('User signed up successfully and profile created');
+      navigate('/chatinbox');
+
     } catch (err) {
       setError('Something went wrong. Please try again later.');
       console.error('Signup error:', err);
@@ -47,61 +77,51 @@ function Signup() {
         </div>
         <div className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email address
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Name</label>
             <input
-              id="email"
+              type="text"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              placeholder="Enter your name"
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Email address</label>
+            <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter email"
               required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Password</label>
             <input
-              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
               required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-              Confirm Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
             <input
-              id="confirmPassword"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm password"
               required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
           {error && (
-            <div className="text-red-500 text-sm text-center">
-              {error}
-              {error.includes('already exists') && (
-                <div className="mt-2">
-                  <button
-                    onClick={() => navigate('/signin')}
-                    className="text-indigo-600 hover:text-indigo-800 underline"
-                  >
-                    Go to Sign In
-                  </button>
-                </div>
-              )}
-            </div>
+            <div className="text-red-500 text-sm text-center">{error}</div>
           )}
           <div>
             <button
