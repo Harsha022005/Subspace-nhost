@@ -1,38 +1,72 @@
-import React, { useState } from "react";
-import { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { nhost } from "../nhost";
 import { useNavigate } from "react-router-dom";
-import Signup from "./Signup";
+import { useQuery, gql } from "@apollo/client";
+import { client } from "../appoloclient";
+
+
+const GET_USER_PROFILE = gql`
+  query GetUserProfile($auth_id: uuid!) {
+    users_app(where: { auth_id: { _eq: $auth_id } }) {
+      user_id
+      user_name
+      user_email
+    }
+  }
+`;
 
 function Signin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [userName, setUserName] = useState('');
   const navigate = useNavigate();
 
-   useEffect(() => {
+  useEffect(() => {
     const checkAuth = async () => {
       const isAuthenticated = await nhost.auth.isAuthenticatedAsync();
       if (isAuthenticated) {
+        const authUser = nhost.auth.getUser();
+       
+        const { data } = await client.query({
+          query: GET_USER_PROFILE,
+          variables: { auth_id: authUser.id },
+        });
+        if (data?.users_app[0]?.user_name) {
+          setUserName(data.users_app[0].user_name);
+        }
         console.log('User is already authenticated, redirecting to chat inbox');
         navigate('/chatinbox');
       }
     };
-
     checkAuth();
   }, [navigate]);
-  
 
   const handleSignin = async () => {
+    setError('');
+    try {
+      const { session, error: authError } = await nhost.auth.signIn({ email, password });
+      if (authError) {
+        setError(authError.message);
+        console.log('Error signing in:', authError);
+        return;
+      }
 
-    
-    const { session, error } = await nhost.auth.signIn({ email, password });
-    if (error) {
-      setError(error.message);
-      console.log('Error signing in:', error);
-    } else {
+      
+      const authUser = nhost.auth.getUser();
+      const { data } = await client.query({
+        query: GET_USER_PROFILE,
+        variables: { auth_id: authUser.id },
+      });
+      if (data?.users_app[0]?.user_name) {
+        setUserName(data.users_app[0].user_name);
+      }
+
       console.log('User signed in successfully', session);
       navigate('/chatinbox');
+    } catch (err) {
+      setError('Something went wrong. Please try again later.');
+      console.error('Signin error:', err);
     }
   };
 
@@ -44,9 +78,7 @@ function Signin() {
         </div>
         <div className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email address
-            </label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
             <input
               id="email"
               type="email"
@@ -58,9 +90,7 @@ function Signin() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
             <input
               id="password"
               type="password"
