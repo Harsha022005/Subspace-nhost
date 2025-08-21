@@ -21,49 +21,48 @@ const Signup = () => {
 
       if (authError) {
         setError(authError.message);
+        setLoading(false);
         return;
       }
 
       if (!session || !session.user) {
         setError("Signup failed: No session or user returned.");
+        setLoading(false);
         return;
       }
 
-      // Store details in constants
-      console.log('user signed up successfully',session)
-      const USER_ID = session.user.id;
+      console.log("User signed up successfully:", session);
+      const USER_ID=session.user.id;
+
       const USER_EMAIL = session.user.email;
       const USER_NAME = userName || session.user.displayName || USER_EMAIL;
 
-      // Step 2 — Insert into users_app via GraphQL
-      try {
-        const data = await fetch("https://mgaffvhkvdrrhibqcqkp.hasura.ap-south-1.nhost.run/v1/graphql", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "x-hasura-admin-secret": "'FwfT)CtP;^$K+X@%uKKIcvl74Lc=m^0"
-  },
-  body: JSON.stringify({
-    query: `
-      mutation InsertUserApp($user_id: uuid!, $user_email: String!, $user_name: String!) {
-        insert_users_app_one(object: {user_id: $user_id, user_email: $user_email, user_name: $user_name}) {
-          user_id
-          user_email
-          user_name
-        }
-      }`,
-    variables: {
-      user_id: USER_ID,
-      user_email: USER_EMAIL,
-      user_name: USER_NAME
+      // Step 2 — Insert into users_app via GraphQL (pure GraphQL)
+      const { data, error: gqlError } = await nhost.graphql.request(
+  `
+  mutation InsertUserApp($user_id: uuid!, $user_email: String!, $user_name: String!) {
+    insert_users_app_one(object: { user_id: $user_id, user_email: $user_email, user_name: $user_name }) {
+      user_id
+      user_email
+      user_name
     }
-  })
-});
+  }
+  `,
+  {
+    user_id: USER_ID,        
+    user_email: USER_EMAIL,
+    user_name: USER_NAME,
+  }
+);
 
-      } catch (gqlError) {
+
+      if (gqlError) {
         console.error("GraphQL error:", gqlError);
-        setError("Failed to sync with users_app.");
+        setError("Failed to insert into users_app.");
+      } else {
+        console.log("User inserted in users_app:", data);
       }
+
     } catch (err) {
       console.error("Unexpected error:", err);
       setError("Something went wrong!");
