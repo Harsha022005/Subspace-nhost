@@ -1,104 +1,119 @@
+import React, { useState } from "react";
 import { nhost } from "../nhost";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { gql } from "@apollo/client";
-import { client } from "../appoloclient";
 
-function Signup() {
-  const [email, setEmail] = useState('');
-  const [userName, setUserName] = useState(''); 
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  const INSERT_USER = gql`
-    mutation InsertUser($user_name: String!, $user_email: String!) {
-      insert_users_app_one(object: { user_name: $user_name, user_email: $user_email }) {
-        user_id
-        user_name
-      }
-    }
-  `;
+const Signup = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [userName, setUserName] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    setError('');
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+    setError("");
+    setLoading(true);
 
     try {
-      const { session, error: authError } = await nhost.auth.signUp({ email, password });
+      // Step 1 — Sign up with Nhost Auth
+      const { session, error: authError } = await nhost.auth.signUp({
+        email,
+        password,
+      });
 
       if (authError) {
-        setError(authError.message.includes('already exists') 
-          ? 'An account with this email already exists.' 
-          : authError.message);
+        setError(authError.message);
         return;
       }
 
-    
-      await client.mutate({
-        mutation: INSERT_USER,
-        variables: {
-          user_name: userName,
-          user_email: email,
-        },
-      });
+      if (!session || !session.user) {
+        setError("Signup failed: No session or user returned.");
+        return;
+      }
 
-      console.log('User signed up successfully', session);
-      navigate('/chatinbox');
+      // Store details in constants
+      console.log('user signed up successfully',session)
+      const USER_ID = session.user.id;
+      const USER_EMAIL = session.user.email;
+      const USER_NAME = userName || session.user.displayName || USER_EMAIL;
+
+      // Step 2 — Insert into users_app via GraphQL
+      try {
+        const data = await fetch("https://mgaffvhkvdrrhibqcqkp.hasura.ap-south-1.nhost.run/v1/graphql", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-hasura-admin-secret": "'FwfT)CtP;^$K+X@%uKKIcvl74Lc=m^0"
+  },
+  body: JSON.stringify({
+    query: `
+      mutation InsertUserApp($user_id: uuid!, $user_email: String!, $user_name: String!) {
+        insert_users_app_one(object: {user_id: $user_id, user_email: $user_email, user_name: $user_name}) {
+          user_id
+          user_email
+          user_name
+        }
+      }`,
+    variables: {
+      user_id: USER_ID,
+      user_email: USER_EMAIL,
+      user_name: USER_NAME
+    }
+  })
+});
+
+      } catch (gqlError) {
+        console.error("GraphQL error:", gqlError);
+        setError("Failed to sync with users_app.");
+      }
     } catch (err) {
-      console.error('Signup error:', err);
-      setError('Something went wrong. Please try again later.');
+      console.error("Unexpected error:", err);
+      setError("Something went wrong!");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-12">
-      <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-xl shadow-lg">
-        <h2 className="text-center text-3xl font-bold text-gray-900">Create your account</h2>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        width: "300px",
+        margin: "auto",
+        marginTop: "50px",
+      }}
+    >
+      <h2>Signup</h2>
 
-        <input
-          type="text"
-          placeholder="Username"
-          value={userName}
-          onChange={e => setUserName(e.target.value)}
-          className="input-field"
-        />
+      <input
+        type="text"
+        placeholder="Name"
+        value={userName}
+        onChange={(e) => setUserName(e.target.value)}
+        disabled={loading}
+      />
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        disabled={loading}
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        disabled={loading}
+      />
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          className="input-field"
-        />
+      <button onClick={handleSignup} disabled={loading}>
+        {loading ? "Signing Up..." : "Sign Up"}
+      </button>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          className="input-field"
-        />
-
-        <input
-          type="password"
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
-          className="input-field"
-        />
-
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-
-        <button onClick={handleSignup} className="btn-primary">Sign Up</button>
-      </div>
+      {error && <p style={{ color: "red" }}>{error}</p>}
     </div>
   );
-}
+};
 
 export default Signup;
