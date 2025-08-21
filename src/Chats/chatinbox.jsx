@@ -23,6 +23,7 @@ const GET_USERS = gql`
     users_app {
       user_id
       user_name
+      user_email
     }
   }
 `;
@@ -36,10 +37,10 @@ export default function ChatInbox() {
   const navigate = useNavigate();
   const client = useApolloClient();
 
-  // Auth state
+  // Auth
   useEffect(() => {
-    const initialUser = nhost.auth.getUser();
-    if (initialUser) setUserId(initialUser.id);
+    const user = nhost.auth.getUser();
+    if (user) setUserId(user.id);
     else navigate('/');
 
     const unsubscribe = nhost.auth.onAuthStateChanged((event, session) => {
@@ -49,7 +50,6 @@ export default function ChatInbox() {
         navigate('/');
       }
     });
-
     return () => unsubscribe();
   }, [navigate]);
 
@@ -59,9 +59,7 @@ export default function ChatInbox() {
       try {
         const result = await client.query({ query: GET_USERS });
         const map = {};
-        result.data.users_app.forEach((u) => {
-          map[u.user_id] = u.user_name;
-        });
+        result.data.users_app.forEach((u) => (map[u.user_id] = u.user_name));
         setUsersMap(map);
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -70,41 +68,34 @@ export default function ChatInbox() {
     fetchUsers();
   }, [client]);
 
-  const { data, loading, error } = useQuery(GET_CHATS, {
+  const { data, loading, error, refetch } = useQuery(GET_CHATS, {
     variables: { user_id: userId },
     skip: !userId,
     fetchPolicy: 'network-only',
   });
 
-  const handleSignOut = async () => await nhost.auth.signOut();
-
-const handleSearchUser = async () => {
-  if (!searchText) return;
-
-  const SEARCH_USERS = gql`
-    query GetUsers($name: String!) {
-      users_app(where: { user_name: { _ilike: $name } }) {
-        user_id
-        user_name
-        user_email
+  const handleSearchUser = async () => {
+    if (!searchText) return;
+    const SEARCH_USERS = gql`
+      query GetUsers($name: String!) {
+        users_app(where: { user_name: { _ilike: $name } }) {
+          user_id
+          user_name
+          user_email
+        }
       }
+    `;
+    try {
+      const result = await client.query({
+        query: SEARCH_USERS,
+        variables: { name: `%${searchText}%` },
+        fetchPolicy: 'network-only',
+      });
+      setSearchUsersList(result.data.users_app || []);
+    } catch (err) {
+      console.error('Error searching users:', err);
     }
-  `;
-
-  try {
-    const result = await client.query({
-      query: SEARCH_USERS,
-      variables: { name: `%${searchText}%` }, 
-      fetchPolicy: 'network-only',
-    });
-    
-    console.log('Search results:', result.data.users_app)
-    setSearchUsersList(result.data.users_app || []);
-  } catch (err) {
-    console.error('Error fetching users:', err);
-  }
-};
-
+  };
 
   const handleAddChaters = async (receiver_user_id) => {
     const ADD_CHAT = gql`
@@ -121,34 +112,18 @@ const handleSearchUser = async () => {
       });
       const newChatId = result.data.insert_chats_one.conversation_id;
       setSelectedChatId(newChatId);
-      navigate(`/chat/${newChatId}`);
+      refetch(); // refresh chat list
     } catch (err) {
       console.error('Error adding chat:', err);
     }
   };
 
   if (!userId)
-    return (
-      <p className="flex items-center justify-center h-screen text-lg text-gray-500">
-        You are not signed in. Redirecting...
-      </p>
-    );
-
+    return <p className="flex items-center justify-center h-screen text-gray-500">Redirecting...</p>;
   if (loading)
-    return (
-      <p className="flex items-center justify-center h-screen text-lg text-gray-500">
-        Loading chats...
-      </p>
-    );
-
-  if (error) {
-    console.error('Error fetching chats:', error);
-    return (
-      <p className="flex items-center justify-center h-screen text-lg text-red-500">
-        Error fetching chats.
-      </p>
-    );
-  }
+    return <p className="flex items-center justify-center h-screen text-gray-500">Loading chats...</p>;
+  if (error)
+    return <p className="flex items-center justify-center h-screen text-red-500">Error fetching chats.</p>;
 
   const noChatsFound = !data?.chats || data.chats.length === 0;
 
@@ -164,10 +139,7 @@ const handleSearchUser = async () => {
             placeholder="Search username"
             className="p-2 border w-full rounded"
           />
-          <button
-            onClick={handleSearchUser}
-            className="ml-2 px-4 bg-indigo-500 text-white rounded"
-          >
+          <button onClick={handleSearchUser} className="ml-2 px-4 bg-indigo-500 text-white rounded">
             Search
           </button>
         </div>
@@ -197,10 +169,8 @@ const handleSearchUser = async () => {
             return (
               <div
                 key={chat.conversation_id}
-                className={`p-4 mb-2 cursor-pointer transition-all duration-200 ease-in-out transform rounded-lg ${
-                  selectedChatId === chat.conversation_id
-                    ? 'bg-indigo-100 font-semibold text-indigo-800 shadow-md'
-                    : 'bg-gray-100 hover:bg-gray-200'
+                className={`p-4 mb-2 cursor-pointer rounded-lg ${
+                  selectedChatId === chat.conversation_id ? 'bg-indigo-100 font-semibold text-indigo-800 shadow-md' : 'bg-gray-100 hover:bg-gray-200'
                 }`}
                 onClick={() => setSelectedChatId(chat.conversation_id)}
               >
@@ -213,33 +183,7 @@ const handleSearchUser = async () => {
 
       {/* Chat Window */}
       <div className="flex-1 flex flex-col">
-        {selectedChatId ? (
-          <ChatWindow chatId={selectedChatId} />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-16 w-16 text-gray-300 mb-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-              />
-            </svg>
-            <p className="text-lg text-gray-500">Select a chat to start messaging</p>
-          </div>
-        )}
-        <button
-          onClick={handleSignOut}
-          className="m-4 px-4 py-2 bg-red-500 text-white rounded"
-        >
-          Sign Out
-        </button>
+        {selectedChatId ? <ChatWindow chatId={selectedChatId} /> : <p className="m-auto text-gray-500">Select a chat to start messaging</p>}
       </div>
     </div>
   );
