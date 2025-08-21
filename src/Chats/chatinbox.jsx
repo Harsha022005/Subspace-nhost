@@ -3,6 +3,7 @@ import { useQuery, gql, useApolloClient } from '@apollo/client';
 import ChatWindow from './chatroom';
 import { nhost } from '../nhost';
 import { useNavigate } from 'react-router-dom';
+import Navbar from '../navbar';
 
 const GET_CHATS = gql`
   query GetChats($user_id: uuid!) {
@@ -127,19 +128,26 @@ export default function ChatInbox() {
 
   const noChatsFound = !data?.chats || data.chats.length === 0;
 
-  return (
-    <div className="flex h-screen bg-gray-50 text-gray-800">
+return (
+  <div className="flex flex-col h-screen bg-gray-50 text-gray-800">
+    <div className="bg-indigo-600 text-white shadow-md">
+      <Navbar />
+    </div>
+    <div className="flex flex-1 overflow-hidden">
       {/* Search Users */}
-      <div className="w-1/4 p-4 border-r border-gray-200">
+      <div className="w-1/4 p-4 border-r border-gray-200 bg-white overflow-y-auto">
         <div className="flex mb-4">
           <input
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Search username"
-            className="p-2 border w-full rounded"
+            className="p-2 border flex-grow rounded-l focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          <button onClick={handleSearchUser} className="ml-2 px-4 bg-indigo-500 text-white rounded">
+          <button 
+            onClick={handleSearchUser} 
+            className="px-4 bg-indigo-500 text-white rounded-r hover:bg-indigo-600 transition duration-150 ease-in-out"
+          >
             Search
           </button>
         </div>
@@ -147,10 +155,10 @@ export default function ChatInbox() {
         {searchUsersList.map((user) => (
           <div key={user.user_id} className="mb-2">
             <button
-              className="w-full p-2 bg-gray-100 rounded hover:bg-gray-200"
+              className="w-full p-3 bg-gray-100 rounded hover:bg-gray-200 transition duration-150 ease-in-out text-left"
               onClick={() => handleAddChaters(user.user_id)}
             >
-              <p>{user.user_name}</p>
+              <p className="font-semibold">{user.user_name}</p>
               <p className="text-sm text-gray-500">{user.user_email}</p>
             </button>
           </div>
@@ -169,8 +177,10 @@ export default function ChatInbox() {
             return (
               <div
                 key={chat.conversation_id}
-                className={`p-4 mb-2 cursor-pointer rounded-lg ${
-                  selectedChatId === chat.conversation_id ? 'bg-indigo-100 font-semibold text-indigo-800 shadow-md' : 'bg-gray-100 hover:bg-gray-200'
+                className={`p-4 mb-2 cursor-pointer rounded-lg transition duration-150 ease-in-out ${
+                  selectedChatId === chat.conversation_id 
+                    ? 'bg-indigo-100 font-semibold text-indigo-800 shadow-md' 
+                    : 'bg-gray-100 hover:bg-gray-200'
                 }`}
                 onClick={() => setSelectedChatId(chat.conversation_id)}
               >
@@ -182,9 +192,16 @@ export default function ChatInbox() {
       </div>
 
       {/* Chat Window */}
-      <div className="flex-1 flex flex-col">
-        {selectedChatId ? <ChatWindow chatId={selectedChatId} /> : <p className="m-auto text-gray-500">Select a chat to start messaging</p>}
+      <div className="flex-1 flex flex-col bg-white">
+        {selectedChatId ? (
+          <ChatWindow chatId={selectedChatId} />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500 text-lg">Select a chat to start messaging</p>
+          </div>
+        )}
       </div>
     </div>
-  );
+  </div>
+);
 }

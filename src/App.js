@@ -5,6 +5,8 @@ import Signin from './Auth/Signin';
 import ChatInbox from './Chats/chatinbox';
 import ChatWindow from './Chats/chatroom';
 import PrivateRoute from './Auth/privateroute';
+import Navbar from './navbar';
+import Profile from './profile';
 
 function App() {
   return (
@@ -13,6 +15,7 @@ function App() {
         {/* Public routes */}
         <Route path="/" element={<Signin />} />
         <Route path="/signup" element={<Signup />} />
+          <Route path="/profile" element={<Profile />} />
 
         {/* Protected routes */}
         <Route
