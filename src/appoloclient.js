@@ -6,8 +6,8 @@ import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 import { nhost } from './nhost';
 
-const HASURA_HTTP_URL = 'https://mgaffvhkvdrrhibqcqkp.hasura.ap-south-1.nhost.run/v1/graphql';
-const HASURA_WS_URL = 'wss://mgaffvhkvdrrhibqcqkp.hasura.ap-south-1.nhost.run/v1/graphql';
+const HASURA_HTTP_URL = process.env.REACT_APP_HASURA_HTTP_URL;
+const HASURA_WS_URL = process.env.REACT_APP_HASURA_WS_URL;
 
 const httpLink = new HttpLink({ uri: HASURA_HTTP_URL });
 
