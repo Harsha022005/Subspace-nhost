@@ -18,6 +18,12 @@ export default function Navbar() {
         >
           Profile
         </Link>
+        <Link
+          to='/chatbot'
+          className="hover:bg-indigo-500 px-3 py-2 rounded transition-colors"
+        >
+          Chatbot
+        </Link>
       </div>
     </nav>
   );
