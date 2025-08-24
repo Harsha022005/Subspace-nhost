@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, gql, useApolloClient } from '@apollo/client';
+import { useSubscription, gql, useApolloClient } from '@apollo/client';
 import { nhost } from '../nhost';
 
-const GET_MESSAGES = gql`
-  query GetMessages($chatId: uuid!) {
+const MESSAGE_SUBSCRIPTION = gql`
+  subscription GetMessages($chatId: uuid!) {
     messages(where: { conversation_id: { _eq: $chatId } }, order_by: { timestamp: asc }) {
       id
       sender_id
@@ -13,34 +13,35 @@ const GET_MESSAGES = gql`
   }
 `;
 
+const INSERT_MESSAGE = gql`
+  mutation InsertMessage($conversation_id: uuid!, $sender_id: uuid!, $content: String!) {
+    insert_messages_one(object: { conversation_id: $conversation_id, sender_id: $sender_id, content: $content }) {
+      id
+      content
+    }
+  }
+`;
+
 export default function ChatWindow({ chatId }) {
   const [messageContent, setMessageContent] = useState('');
   const [senderId, setSenderId] = useState(null);
   const client = useApolloClient();
 
+  // Get current user ID
   useEffect(() => {
     const user = nhost.auth.getUser();
     if (user) setSenderId(user.id);
   }, []);
 
-  const { data, loading, error, refetch } = useQuery(GET_MESSAGES, {
+  // Subscription for real-time messages
+  const { data, loading, error } = useSubscription(MESSAGE_SUBSCRIPTION, {
     variables: { chatId },
     skip: !chatId,
-    fetchPolicy: 'network-only',
   });
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!messageContent.trim() || !senderId) return;
-
-    const INSERT_MESSAGE = gql`
-      mutation InsertMessage($conversation_id: uuid!, $sender_id: uuid!, $content: String!) {
-        insert_messages_one(object: { conversation_id: $conversation_id, sender_id: $sender_id, content: $content }) {
-          id
-          content
-        }
-      }
-    `;
 
     try {
       await client.mutate({
@@ -52,19 +53,17 @@ export default function ChatWindow({ chatId }) {
         },
       });
       setMessageContent('');
-      refetch(); // refresh messages
     } catch (err) {
       console.error('Error sending message:', err);
     }
   };
 
-  if (loading) return <p className="p-4 text-gray-500">Loading messages...</p>;
-  if (error) return <p className="p-4 text-red-500">Error fetching messages.</p>;
-
   return (
     <div className="flex flex-col h-full bg-white">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {(!data?.messages || data.messages.length === 0) ? (
+        {loading ? (
+          <p className="text-gray-500 text-center">Loading messages...</p>
+        ) : (!data?.messages || data.messages.length === 0) ? (
           <p className="text-gray-400 text-center italic">No messages yet. Start chatting!</p>
         ) : (
           data.messages.map((msg) => (
