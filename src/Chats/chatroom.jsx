@@ -38,6 +38,7 @@ export default function ChatWindow({ chatId }) {
     variables: { chatId },
     skip: !chatId,
   });
+  if (error) console.log(error);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
