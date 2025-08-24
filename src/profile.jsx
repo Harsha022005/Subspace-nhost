@@ -3,7 +3,6 @@ import { gql, useQuery } from "@apollo/client";
 import { nhost } from "./nhost";
 import Navbar from './navbar';
 
-// GraphQL query to get a single user by ID
 const GET_USER_PROFILE = gql`
   query GetUserProfile($user_id: uuid!) {
     users_app(where: { user_id: { _eq: $user_id } }) {

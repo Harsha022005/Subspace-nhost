@@ -17,7 +17,7 @@ function Signin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // New state for loading
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,13 +30,11 @@ function Signin() {
             query: GET_USER_PROFILE,
             variables: { email: authUser.email },
           });
-          // Note: The userName is not used in this component, but the query is kept for consistency.
           if (data?.users_app?.length > 0) {
             navigate("/chatinbox");
           }
         } catch (err) {
           console.error("Error fetching user profile:", err);
-          // In case of error, still navigate to prevent being stuck on the sign-in page.
           navigate("/chatinbox"); 
         }
       }
@@ -46,7 +44,7 @@ function Signin() {
 
   const handleSignin = async () => {
     setError("");
-    setLoading(true); // Set loading to true on button click
+    setLoading(true); 
     try {
       const { session, error: authError } = await nhost.auth.signIn({
         email,
@@ -59,14 +57,12 @@ function Signin() {
         return;
       }
 
-      // If sign-in is successful, navigate directly.
-      // The useEffect hook or subsequent component render will handle the user profile fetch.
       navigate("/chatinbox");
     } catch (err) {
       console.error("Signin error:", err);
       setError("Something went wrong. Please try again later.");
     } finally {
-      setLoading(false); // Ensure loading is set to false in all cases
+      setLoading(false); 
     }
   };
 
