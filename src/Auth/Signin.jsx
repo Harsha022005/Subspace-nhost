@@ -46,7 +46,7 @@ function Signin() {
     setError("");
     setLoading(true); 
     try {
-      const { session, error: authError } = await nhost.auth.signIn({
+      const {error: authError } = await nhost.auth.signIn({
         email,
         password,
       });
