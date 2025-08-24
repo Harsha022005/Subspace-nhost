@@ -6,7 +6,6 @@ import { ApolloProvider } from '@apollo/client';
 import { client } from './appoloclient';
 import { nhost } from './nhost';
 import { NhostReactProvider } from '@nhost/react';
-// Remove NhostApolloProvider - use custom client instead
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

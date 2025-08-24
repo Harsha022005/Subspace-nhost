@@ -7,7 +7,7 @@ import ChatWindow from './Chats/chatroom';
 import PrivateRoute from './Auth/privateroute';
 import Navbar from './navbar';
 import Profile from './profile';
-
+import ChatBot from './Chats/chatbot';
 function App() {
   return (
     <BrowserRouter>
@@ -16,7 +16,7 @@ function App() {
         <Route path="/" element={<Signin />} />
         <Route path="/signup" element={<Signup />} />
           <Route path="/profile" element={<Profile />} />
-
+       <Route path="/chatbot" element={<ChatBot />} />
         {/* Protected routes */}
         <Route
           path="/chatinbox"
