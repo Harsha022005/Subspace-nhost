@@ -5,7 +5,6 @@ import Signin from './Auth/Signin';
 import ChatInbox from './Chats/chatinbox';
 import ChatWindow from './Chats/chatroom';
 import PrivateRoute from './Auth/privateroute';
-import Navbar from './navbar';
 import Profile from './profile';
 import ChatBot from './Chats/chatbot';
 function App() {
